@@ -1,0 +1,11 @@
+artifacts/
+artifacts/hardhat/
+artifacts/contracts/
+cache/
+node_modules/
+coverage/
+coverage.json
+build/
+typechain/
+data/abi/
+.env
