@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -20,11 +20,11 @@ contract HAProfile is AccessControl, ERC721Holder {
     bytes32 public constant EXP_ROLE = keccak256("HA_EXP_ROLE");
     bytes32 public constant SPECIAL_ROLE = keccak256("HA_SPECIAL_ROLE");
 
-    uint256 public numberOfActiveProfiles;
-    uint256 public numberOfTokenToReactivate;
-    uint256 public numberOfTokenToRegister;
-    uint256 public numberOfTokenToUpdate;
-    uint256 public numberOfTeams;
+    uint256 public costActiveProfiles;
+    uint256 public costTokenToReactivate;
+    uint256 public costTokenToRegister;
+    uint256 public costTokenToUpdate;
+    uint256 public costTeams;
 
     mapping(address => bool) public hasRegistered;
 
@@ -99,11 +99,11 @@ contract HAProfile is AccessControl, ERC721Holder {
         _;
     }
 
-    constructor(IERC20 _ArnToken, uint256 _numberOfTokenToReactivate, uint256 _numberOfTokenToRegister, uint256 _numberOfTokenToUpdate) {
+    constructor(IERC20 _ArnToken, uint256 _costTokenToReactivate, uint256 _costTokenToRegister, uint256 _costTokenToUpdate) {
         ArnToken = _ArnToken;
-        numberOfTokenToReactivate = _numberOfTokenToReactivate;
-        numberOfTokenToRegister = _numberOfTokenToRegister;
-        numberOfTokenToUpdate = _numberOfTokenToUpdate;
+        costTokenToReactivate = _costTokenToReactivate;
+        costTokenToRegister = _costTokenToRegister;
+        costTokenToUpdate = _costTokenToUpdate;
 
         // set default admin
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -117,7 +117,7 @@ contract HAProfile is AccessControl, ERC721Holder {
         uint256 _tokenId
     ) external {
         require(!hasRegistered[msg.sender], "User already registered");
-        require(_teamId > 0 && _teamId <= numberOfTeams, "Invalid teamId");
+        require(_teamId > 0 && _teamId <= costTeams, "Invalid teamId");
         require(teams[_teamId].isOpen, "Team not open");
         require(hasRole(NFT_ROLE, _nftAddress), "NFT address invalid");
 
@@ -130,7 +130,7 @@ contract HAProfile is AccessControl, ERC721Holder {
         nftToken.safeTransferFrom(msg.sender, address(this), _tokenId);
 
         // Transfer ARN tokens to this contract
-        ArnToken.safeTransferFrom(msg.sender, address(this), numberOfTokenToRegister);
+        ArnToken.safeTransferFrom(msg.sender, address(this), costTokenToRegister);
 
         // Increment the _countUsers counter and get userId
         _countUsers.increment();
@@ -150,7 +150,7 @@ contract HAProfile is AccessControl, ERC721Holder {
         hasRegistered[msg.sender] = true;
 
         // Update number of active profiles
-        numberOfActiveProfiles = numberOfActiveProfiles.add(1);
+        costActiveProfiles = costActiveProfiles.add(1);
 
         // Increase the number of users for the team
         teams[_teamId].userNumber = teams[_teamId].userNumber.add(1);
@@ -173,7 +173,7 @@ contract HAProfile is AccessControl, ERC721Holder {
 
         // Reduce number of active users and team users
         teams[userTeamId].userNumber = teams[userTeamId].userNumber.sub(1);
-        numberOfActiveProfiles = numberOfActiveProfiles.sub(1);
+        costActiveProfiles = costActiveProfiles.sub(1);
 
         // Interface to deposit the NFT contract
         IERC721 nftToken = IERC721(users[msg.sender].nftAddress);
@@ -212,7 +212,7 @@ contract HAProfile is AccessControl, ERC721Holder {
         nftNewToken.safeTransferFrom(msg.sender, address(this), _tokenId);
 
         // Transfer ARN token to this address
-        ArnToken.safeTransferFrom(msg.sender, address(this), numberOfTokenToUpdate);
+        ArnToken.safeTransferFrom(msg.sender, address(this), costTokenToUpdate);
 
         // Interface to deposit the NFT contract
         IERC721 nftCurrentToken = IERC721(currentAddress);
@@ -239,7 +239,7 @@ contract HAProfile is AccessControl, ERC721Holder {
         require(msg.sender == nftToken.ownerOf(_tokenId), "Only NFT owner can update");
 
         // Transfer to this address
-        ArnToken.safeTransferFrom(msg.sender, address(this), numberOfTokenToReactivate);
+        ArnToken.safeTransferFrom(msg.sender, address(this), costTokenToReactivate);
 
         // Transfer NFT to contract
         nftToken.safeTransferFrom(msg.sender, address(this), _tokenId);
@@ -249,7 +249,7 @@ contract HAProfile is AccessControl, ERC721Holder {
 
         // Update number of users for the team and number of active profiles
         teams[userTeamId].userNumber = teams[userTeamId].userNumber.add(1);
-        numberOfActiveProfiles = numberOfActiveProfiles.add(1);
+        costActiveProfiles = costActiveProfiles.add(1);
 
         // Update user statuses
         users[msg.sender].isActive = true;
@@ -351,7 +351,7 @@ contract HAProfile is AccessControl, ERC721Holder {
             isOpen: true
         });
 
-        numberOfTeams = newTeamId;
+        costTeams = newTeamId;
         emit TeamAdd(newTeamId, _teamName);
     }
 
@@ -359,7 +359,7 @@ contract HAProfile is AccessControl, ERC721Holder {
     /// Callable only by special admins.
     function changeTeam(address _userAddress, uint256 _newTeamId) external onlySpecialAdmin {
         require(hasRegistered[_userAddress], "User doesn't exist");
-        require((_newTeamId <= numberOfTeams) && (_newTeamId > 0), "teamId doesn't exist");
+        require((_newTeamId <= costTeams) && (_newTeamId > 0), "teamId doesn't exist");
         require(teams[_newTeamId].isOpen, "Team not open");
         require(users[_userAddress].teamId != _newTeamId, "Already in the team");
 
@@ -385,7 +385,7 @@ contract HAProfile is AccessControl, ERC721Holder {
         string calldata _teamName,
         string calldata _teamDescription
     ) external onlyOwner {
-        require(_teamId > 0 && _teamId <= numberOfTeams, "teamId invalid");
+        require(_teamId > 0 && _teamId <= costTeams, "teamId invalid");
 
         // Verify length is between 3 and 16
         bytes memory strBytes = bytes(_teamName);
@@ -405,14 +405,14 @@ contract HAProfile is AccessControl, ERC721Holder {
     /// @notice Make a team open again.
     /// Callable only by owner admins.
     function makeTeamOpen(uint256 _teamId) external onlyOwner {
-        require(_teamId > 0 && _teamId <= numberOfTeams, "teamId invalid");
+        require(_teamId > 0 && _teamId <= costTeams, "teamId invalid");
         teams[_teamId].isOpen = true;
     }
 
     /// @notice Make a team not open again.
     /// Callable only by owner admins.
     function makeTeamNotOpen(uint256 _teamId) external onlyOwner {
-        require(_teamId > 0 && _teamId <= numberOfTeams, "teamId invalid");
+        require(_teamId > 0 && _teamId <= costTeams, "teamId invalid");
         teams[_teamId].isOpen = false;
     }
 
@@ -423,9 +423,9 @@ contract HAProfile is AccessControl, ERC721Holder {
         uint256 _newNumberOfTokenToRegister,
         uint256 _newNumberOfTokenToUpdate
     ) external onlyOwner {
-        numberOfTokenToReactivate = _newNumberOfTokenToReactivate;
-        numberOfTokenToRegister = _newNumberOfTokenToRegister;
-        numberOfTokenToUpdate = _newNumberOfTokenToUpdate;
+        costTokenToReactivate = _newNumberOfTokenToReactivate;
+        costTokenToRegister = _newNumberOfTokenToRegister;
+        costTokenToUpdate = _newNumberOfTokenToUpdate;
     }
 
     /// @notice Check the user's profile for a given address
@@ -469,7 +469,7 @@ contract HAProfile is AccessControl, ERC721Holder {
             bool
         )
     {
-        require((_teamId <= numberOfTeams) && (_teamId > 0), "teamId invalid");
+        require((_teamId <= costTeams) && (_teamId > 0), "teamId invalid");
         return (
             teams[_teamId].teamName,
             teams[_teamId].teamDescription,

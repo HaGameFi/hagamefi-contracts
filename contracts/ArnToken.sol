@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ERC20.sol";
+import "./utils/ERC20.sol";
 
 contract ArnToken is ERC20, Ownable {
     using SafeMath for uint256;
